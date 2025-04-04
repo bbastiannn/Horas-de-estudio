@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculadora de Horas de Estudio</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { font-family: sans-serif; }
+    select, input, button {
+      padding: 0.5rem;
+      margin: 0.5rem;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body style="margin:0">
+  <div id="root"></div>
+  <datalist id="actividades">
+    <option value="Certamen Fis100">
+    <option value="Certamen Fis110">
+    <option value="Certamen Mat70">
+    <option value="Control Mat70">
+    <option value="Control Mat60">
+  </datalist>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const root = document.getElementById('root');
+      const tareas = [];
+      let nombre = '';
+      let horas = 0;
+      let chart;
+
+      root.innerHTML = \`
+        <div id="intro" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(to bottom, #1e3a8a, #000); color: white;">
+          <h1>Bienvenido a tu Calculadora de Horas de Estudio</h1>
+          <input id="nombre" placeholder="Tu nombre" />
+          <input id="horas" placeholder="Horas disponibles a la semana" type="number" />
+          <button id="continuarBtn">Continuar</button>
+        </div>
+
+        <div id="planificador" style="display:none; padding: 2rem; background: linear-gradient(to bottom, #1e3a8a, #000); color:white;">
+          <h2>Planificador de Actividades</h2>
+          <div id="tareas-lista"></div>
+          <input list="actividades" placeholder="Tipo de actividad" id="tipo" />
+          <input type="number" placeholder="Días restantes" id="dias" />
+          <select id="dificultad">
+            <option value="">Dificultad</option>
+            <option value="Baja">Baja</option>
+            <option value="Media">Media</option>
+            <option value="Alta">Alta</option>
+          </select>
+          <button id="agregarBtn">Agregar actividad</button>
+          <button id="distribuirBtn">Continuar</button>
+        </div>
+
+        <div id="app" style="display:none; padding: 2rem; background: linear-gradient(to bottom, #1e3a8a, #000); color:white;">
+          <h2 id="saludo" style="text-align:center;"></h2>
+          <h3 id="resumen" style="text-align:center;"></h3>
+          <ul id="resultados" style="font-size: 1.2rem; list-style: none; padding: 0; text-align:center;"></ul>
+          <div style="max-width: 600px; margin: 2rem auto;">
+            <canvas id="graficoTareas"></canvas>
+            <button onclick="descargarGrafico()">Descargar gráfico</button>
+          </div>
+          <div style="width: 500px; height: 500px; margin: 2rem auto; position: relative; background: white; color: black; border: 2px solid black;">
+            <div style="position: absolute; top: 5%; left: 5%; width: 45%; height: 45%; background-color: #ff7f7f; display: flex; align-items: center; justify-content: center;">1ra Prioridad</div>
+            <div style="position: absolute; top: 5%; right: 5%; width: 45%; height: 45%; background-color: #fff176; display: flex; align-items: center; justify-content: center;">3ra Prioridad</div>
+            <div style="position: absolute; bottom: 5%; left: 5%; width: 45%; height: 45%; background-color: #ffcc80; display: flex; align-items: center; justify-content: center;">2da Prioridad</div>
+            <div style="position: absolute; bottom: 5%; right: 5%; width: 45%; height: 45%; background-color: #a5d6a7; display: flex; align-items: center; justify-content: center;">4ta Prioridad</div>
+            <div style="position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background-color: black;"></div>
+            <div style="position: absolute; left: 50%; top: 0; height: 100%; width: 2px; background-color: black;"></div>
+            <div style="position: absolute; top: 10%; left: -60px; transform: rotate(-90deg); transform-origin: left top; font-size: 0.9rem; background:white; padding:2px;">No lo comprendo</div>
+            <div style="position: absolute; bottom: 10%; left: -50px; transform: rotate(-90deg); transform-origin: left bottom; font-size: 0.9rem; background:white; padding:2px;">Lo comprendo</div>
+          </div>
+          <div style="text-align:center; margin-top: -1rem;">
+            <div style="display: flex; justify-content: space-around;">
+              <div style="color: #ffcc80;">Menos de 1 semana</div>
+              <div style="color: #a5d6a7;">1 a 2 semanas</div>
+            </div>
+          </div>
+        </div>
+      \`;
+
+      document.getElementById('continuarBtn').addEventListener('click', () => {
+        nombre = document.getElementById('nombre').value.trim();
+        horas = parseFloat(document.getElementById('horas').value);
+        if (!nombre || isNaN(horas)) {
+          alert('Por favor completa ambos campos.');
+          return;
+        }
+        document.getElementById('intro').style.display = 'none';
+        document.getElementById('planificador').style.display = 'block';
+      });
+
+      document.getElementById('agregarBtn').addEventListener('click', () => {
+        const tipo = document.getElementById('tipo').value.trim();
+        const dias = parseInt(document.getElementById('dias').value);
+        const dificultad = document.getElementById('dificultad').value;
+        if (tipo && !isNaN(dias) && dificultad) {
+          tareas.push({ tipo, dias, dificultad });
+          const tareaEl = document.createElement('div');
+          tareaEl.textContent = \`\${tipo} - faltan \${dias} días - dificultad: \${dificultad}\`;
+          document.getElementById('tareas-lista').appendChild(tareaEl);
+          document.getElementById('tipo').value = '';
+          document.getElementById('dias').value = '';
+          document.getElementById('dificultad').value = '';
+        }
+      });
+
+      document.getElementById('distribuirBtn').addEventListener('click', () => {
+        if (tareas.length === 0) {
+          alert('Agrega al menos una actividad.');
+          return;
+        }
+
+        document.getElementById('planificador').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('saludo').innerText = \`Hola, \${nombre}!\`;
+        document.getElementById('resumen').innerText = \`Distribución recomendada de tus \${horas} horas semanales:\`;
+
+        const pesos = {{ 'Alta': 3, 'Media': 2, 'Baja': 1 }};
+        let totalPeso = 0;
+        const tiempos = tareas.map(t => {{
+          const peso = pesos[t.dificultad] || 1;
+          totalPeso += peso;
+          return {{ tipo: t.tipo, peso }};
+        }});
+
+        const tiemposOrdenados = tiempos.map(t => {{
+          const h = horas * t.peso / totalPeso;
+          return {{ ...t, horas: h }};
+        }}).sort((a, b) => b.horas - a.horas);
+
+        document.getElementById('resultados').innerHTML = tiemposOrdenados.map(t => {{
+          const hr = Math.floor(t.horas);
+          const min = Math.round((t.horas - hr) * 60);
+          return \`<li>\${t.tipo} → \${hr} h \${min} min</li>\`;
+        }}).join('');
+
+        const ctx = document.getElementById('graficoTareas').getContext('2d');
+        chart = new Chart(ctx, {{
+          type: 'bar',
+          data: {{
+            labels: tiemposOrdenados.map(t => t.tipo),
+            datasets: [{{
+              label: 'Horas asignadas',
+              data: tiemposOrdenados.map(t => +(t.horas.toFixed(2))),
+              backgroundColor: '#f97316'
+            }}]
+          }},
+          options: {{
+            indexAxis: 'y',
+            responsive: true,
+            scales: {{
+              x: {{ beginAtZero: true }}
+            }}
+          }}
+        }});
+      });
+
+      window.descargarGrafico = () => {{
+        if (chart) {{
+          const link = document.createElement('a');
+          link.download = 'grafico-estudio.png';
+          link.href = chart.toBase64Image();
+          link.click();
+        }}
+      }};
+    });
+  </script>
+</body>
+</html>
